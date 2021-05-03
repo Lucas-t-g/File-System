@@ -3,11 +3,15 @@ import os
 from sys import exit
 
 memory_file = 'memory_data.obj'
+FILE = "FILE"
+ARCHIVE = "ARCHIVE"
 
 class INode:
-    def __init__(self, name, blocks_numbers = []):
-        self.name = name
-        self.blocks_numbers = blocks_numbers
+    def __init__(self, name, _type, blocks_numbers = []):
+        if _type == FILE or _type == ARCHIVE:
+            self.name = name
+            self.type = _type
+            self.blocks_numbers = blocks_numbers
     
     def __repr__(self):
         return "{} - {}".format(self.name, self.blocks_numbers)
@@ -60,7 +64,6 @@ class Memory:
                 _str = ""
                 for block_number in inode.blocks_numbers:
                     _str += self.blocks[block_number]
-                # print(inode)
                 print("file: {} - {}".format(inode.name, _str))
 
     def show_files(self):
@@ -88,7 +91,6 @@ class Memory:
                     exit(1)
                 else:
                     list_of_busy_blocks.append(block)
-        
         for i in range(len(self.blocks)):
             if i not in list_of_busy_blocks:
                 return i
@@ -100,7 +102,7 @@ class Memory:
             block_number = self.find_empty_block()
             if block_number != None:
                 self.blocks[block_number] = ""
-                self.inodes.append(INode(name_of_file, blocks_numbers=[block_number]))
+                self.inodes.append(INode(name_of_file, _type=FILE, blocks_numbers=[block_number]))
             else:
                 print("nenhum bloco vazio")
                 exit(1)
@@ -165,20 +167,16 @@ def initial_data_for_tests(memory):
     memory.remove_file("teste3")
     memory.list_files(should_print=True)
 
-if __name__ == "__main__" and True:
-    # memory = Memory()
-    # initial_data_for_tests(memory)
-    # memory.store_data()
-    # print(memory)
+# memory = Memory()
+# initial_data_for_tests(memory)
+# memory.store_data()
+# print(memory)
 
-    memory = Memory()
-    memory.load_data()
+memory = Memory()
+memory.load_data()
 
-    entrada = input("informe o conteudo: ")
-    memory.write_in_file("teste1", entrada)
+entrada = input("informe o conteudo: ")
+memory.write_in_file("teste1", entrada)
 
-    memory.list_files(should_print=True)
-    memory.show_files()
-else:
-    from test import *
-    main()
+memory.list_files(should_print=True)
+memory.show_files()
