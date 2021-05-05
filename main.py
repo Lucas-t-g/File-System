@@ -7,14 +7,37 @@ FILE = "FILE"
 ARCHIVE = "ARCHIVE"
 
 class INode:
-    def __init__(self, name, _type, blocks_numbers = []):
-        if _type == FILE or _type == ARCHIVE:
+    __args = ["name", "_type", "blocks_numbers"]
+    name = None
+    _type = None
+    blocks_numbers = None
+    def __init__(self, name = None, _type = None, blocks_numbers = [], from_dict = None):
+        if from_dict != None and type(from_dict) == dict:
+            for arg in self.__args:
+                setattr(self, arg, from_dict[arg])
+                
+        elif _type == FILE or _type == ARCHIVE:
             self.name = name
-            self.type = _type
+            self._type = _type
             self.blocks_numbers = blocks_numbers
     
     def __repr__(self):
         return "{} - {}".format(self.name, self.blocks_numbers)
+
+    def __str__(self):
+        _str = "{"
+        for arg in self.__args:
+            _str += "'{}': '{}', ".format(arg, getattr(self, arg))
+        return _str[:-2] + "}"
+
+    def test(self):
+        a = str(self)
+        print(a)
+        b = eval(a)
+        print(b)
+        for arg in self.__args:
+            print(arg, b[arg])
+        return a, b
 
 class Memory:
     def __init__(self):     # Kbytes  Mbytes  bits
@@ -24,6 +47,7 @@ class Memory:
         self.n_blocks = int(self.n_bytes / self.block_bytes)
         self.blocks = [None] * self.n_blocks
         self.inodes = []
+        #self.dir_inodes = INode()
     
     def __repr__(self):
         return "{} - {} - {}".format(self.n_bytes, self.block_bytes, self.n_blocks)
@@ -102,7 +126,7 @@ class Memory:
             block_number = self.find_empty_block()
             if block_number != None:
                 self.blocks[block_number] = ""
-                self.inodes.append(INode(name_of_file, _type=FILE, blocks_numbers=[block_number]))
+                self.inodes.append(INode(name = name_of_file, _type=FILE, blocks_numbers=[block_number]))
             else:
                 print("nenhum bloco vazio")
                 exit(1)
@@ -175,8 +199,11 @@ def initial_data_for_tests(memory):
 memory = Memory()
 memory.load_data()
 
-entrada = input("informe o conteudo: ")
-memory.write_in_file("teste1", entrada)
+#entrada = input("informe o conteudo: ")
+#memory.write_in_file("teste1", entrada)
 
 memory.list_files(should_print=True)
 memory.show_files()
+
+i = INode(name = "lucas", _type = FILE)
+a, b = i.test()
