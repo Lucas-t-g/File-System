@@ -139,7 +139,6 @@ class Memory:
         found = False
         for i, inode_block in enumerate(self.current_stack_inode[-1].blocks_numbers):
             inode = INode(from_dict=eval(self.blocks[inode_block]))
-            # print("tt", inode.name, file_name)
             if inode._type == FILE and inode.name == file_name:
                 for block_number in inode.blocks_numbers:
                     self.blocks[block_number] = None
@@ -148,6 +147,7 @@ class Memory:
                 break
         if found:
             self.current_stack_inode[-1].blocks_numbers.pop(i)
+            self._update()
         else:
             print("arquivo nao encontrado no diretório atual")
         return found
@@ -229,6 +229,19 @@ class Memory:
                         return True
             return False
 
+    def delete_folder(self, foldername):
+        found = False
+        for i, inode_block in enumerate(self.current_stack_inode[-1].blocks_numbers):
+            inode = INode(from_dict=eval(self.blocks[inode_block]))
+            if inode._type == FOLDER and inode.name == foldername and len(inode.blocks_numbers) == 0:
+                self.blocks[inode_block] = None
+                found = True
+                break
+        if found:
+            self.current_stack_inode[-1].blocks_numbers.pop(i)
+        else:
+            print("arquivo nao encontrado no diretório atual")
+        return found
 def initial_data_for_tests(memory):
     memory.make_file("teste1")
     memory.make_file("teste2")
@@ -280,10 +293,22 @@ print(memory.current_stack_inode)
 print("~~~~~~~~~~~~~~~~~~~~~~~~")
 
 memory.create_folder("wallpapers")
-memory.list_files_folders(should_print=True)
 memory.open_folder("wallpapers")
 initial_data_for_tests(memory)
 print(memory.current_stack_inode)
+memory.list_files_folders(should_print=True)
 print("~~~~~~~~~~~~~~~~~~~~~~~~")
 
-show_initial_memory_blocks(memory, n = 20)
+memory.remove_file("teste1")
+memory.list_files_folders(should_print=True)
+memory.remove_file("teste2")
+memory.list_files_folders(should_print=True)
+memory.remove_file("teste4")
+memory.list_files_folders(should_print=True)
+print(memory.current_stack_inode)
+memory.open_folder("..")
+memory.delete_folder("wallpapers")
+print(memory.current_stack_inode)
+memory.list_files_folders(should_print=True)
+print("~~~~~~~~~~~~~~~~~~~~~~~~")
+# show_initial_memory_blocks(memory, n = 20)
