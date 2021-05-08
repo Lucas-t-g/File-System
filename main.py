@@ -32,17 +32,6 @@ class INode:
             _str += "'{}': '{}', ".format(attr, getattr(self, attr))
         return _str[:-2] + "}"
 
-    def test(self):
-        a = str(self)
-        print(a)
-        b = eval(a)
-        print(b)
-        for attr in self.__attr:
-            print(attr, b[attr])
-            n = INode(from_dict=b)
-        print(type(n.blocks_numbers))
-        return a, b
-
 class Memory:
     def __init__(self):     # Kbytes  Mbytes  bits
         self.n_bytes = 128 * 1024 * 1024 #* 8
@@ -50,8 +39,7 @@ class Memory:
         self.block_bytes = 4 * 1024 #* 8
         self.n_blocks = int(self.n_bytes / self.block_bytes)
         self.blocks = [None] * self.n_blocks
-        self.inodes = []
-        # self.create_folder("root")
+        # self.inodes = []
         self.current_stack_inode = [INode(name="root", _type=FOLDER)]
         self.blocks[ROOT_BLOCK] = str(self.current_stack_inode[0])
         #self.dir_inodes = INode()
@@ -68,7 +56,7 @@ class Memory:
                 temp = pickle.load(arq)
                 arq.close()
                 self.blocks = temp.blocks
-                self.current_stack_inode= [INode(from_dict=eval(self.blocks[0]))]
+                self.current_stack_inode = [INode(from_dict=eval(self.blocks[ROOT_BLOCK]))]
                 # print("aa:",self.current_stack_inode)
                 # exit()
                 # f_size = os.path.getsize(f_path)
@@ -80,17 +68,6 @@ class Memory:
         arq = open(memory_file, 'wb') 
         pickle.dump(self, arq)
         arq.close()
-
-    def list_files_old(self, should_print = False):
-        _str = ""
-        filenames = []
-        if len(self.inodes) > 0:
-            for inode in self.inodes:
-                _str += "{} - ".format(inode.name)
-                filenames.append(inode.name)
-            _str = _str[:-3]
-        if should_print: print("files: {}".format(_str))
-        return filenames
 
     def list_files_folders(self, should_print = False):
         _str_files = ""
@@ -114,14 +91,6 @@ class Memory:
         if should_print: print("folders: {}".format(_str_folders))
         return filenames, foldernames
     
-    def show_file_old(self, file_name):
-        for inode in self.inodes:
-            if inode.name == file_name:
-                _str = ""
-                for block_number in inode.blocks_numbers:
-                    _str += self.blocks[block_number]
-                print("file: {} - {}".format(inode.name, _str))
-    
     def show_file(self, file_name):
         for inode_block in self.current_stack_inode[-1].blocks_numbers:
             aux_inode = INode(from_dict=eval(self.blocks[inode_block]))
@@ -132,12 +101,6 @@ class Memory:
                 return True
         print("arquivo nao encontrado")
         return False
-
-    def show_files_old(self):
-        for file in self.inodes:
-            self.show_file(file.name)
-            print(file)
-            print()
     
     def show_files(self):
         for inode_block in self.current_stack_inode[-1].blocks_numbers:
@@ -157,39 +120,6 @@ class Memory:
         else:
             print("bloco ocupado")
             exit(1)
-    
-    def find_empty_block_old(self):
-        list_of_busy_blocks = []
-        for inode in self.inodes:
-            for block in inode.blocks_numbers:
-                if block in list_of_busy_blocks:
-                    print("algo inesperado aconteceu")
-                    exit(1)
-                else:
-                    list_of_busy_blocks.append(block)
-        for i in range(len(self.blocks)):
-            if i not in list_of_busy_blocks:
-                return i
-        return None
-
-    def find_empty_block_old2(self):
-        list_of_busy_blocks = []
-        # print("current stack: ", self.current_stack_inode[-1].name, self.current_stack_inode[-1].blocks_numbers)
-        for inode_block in self.current_stack_inode[-1].blocks_numbers:
-            # print("bb: ", inode_block, list_of_busy_blocks)
-            aux_inode = INode(from_dict=eval(self.blocks[inode_block]))
-            print(aux_inode)
-            if aux_inode._type == FILE:
-                for block in aux_inode.blocks_numbers:
-                    if block not in list_of_busy_blocks:
-                        list_of_busy_blocks.append(block)
-                    else:
-                        print("algo inesperado aconteceu")
-                        exit(1)
-        for i in range(1, len(self.blocks)):
-            if i not in list_of_busy_blocks:
-                return i
-        return None
 
     def find_empty_block(self):
         for i in range(1, len(self.blocks)):
@@ -204,15 +134,6 @@ class Memory:
             self._store_inode(aux_inode)
         else:
             print("arquivo ja existe")
-
-    def _remove_file_old(self, file_name):
-        for inode in self.inodes:
-            if inode.name == file_name:
-                for block_number in inode.blocks_numbers:
-                    self.blocks[block_number] = None
-                self.inodes.remove(inode)
-                return True
-        return False
     
     def remove_file(self, file_name):
         found = False
@@ -230,24 +151,6 @@ class Memory:
         else:
             print("arquivo nao encontrado no diretório atual")
         return found
-    
-    def write_in_file_old(self, file_name, content):
-        content = str(content)
-        for inode in self.inodes:
-            if inode.name == file_name:
-                for block_number in inode.blocks_numbers:
-                    self.blocks[block_number] = None #apaga o conteudo prévio do arquivo para sobrescrever os dados
-                inode.blocks_numbers = []
-                while len(content) > 0:
-                    if len(content) > self.block_bytes:
-                        _str = content[:self.block_bytes]
-                        content = content[self.block_bytes:]
-                    else:
-                        _str = content
-                        content = ""
-                    block_number = self.find_empty_block()
-                    inode.blocks_numbers.append(block_number)
-                    self.blocks[block_number] = _str
 
     def write_in_file(self, file_name, content):
         content = str(content)
@@ -270,33 +173,12 @@ class Memory:
                 self.blocks[inode_block] = str(inode)
                 break
 
-    def rename_file_old(self, old_name, new_name):
-        for inode in self.inodes:
-            if inode.name == old_name:
-                inode.name = new_name
-                return True
-        print("arquivo não existe")
-        return False
-
     def rename_file(self, old_name, new_name):
         for i, inode_block in enumerate(self.current_stack_inode[-1].blocks_numbers):
             inode = INode(from_dict=eval(self.blocks[inode_block]))
             if inode._type == FILE and inode.name == old_name:
                 inode.name = new_name
                 self.blocks[inode_block] = str(inode)
-                return True
-        print("arquivo não existe")
-        return False
-    
-    def copy_file_old(self, filename, new_filename = None):
-        for inode in self.inodes:
-            if inode.name == filename:
-                if new_filename is None: new_filename = "{} {}".format(inode.name, "copy")
-                self.make_file(new_filename)
-                _str = ""
-                for block_number in inode.blocks_numbers:
-                    _str += self.blocks[block_number]
-                self.write_in_file(new_filename, _str)
                 return True
         print("arquivo não existe")
         return False
@@ -317,18 +199,6 @@ class Memory:
 
     def create_folder(self, name):
         aux_inode = INode(name=name, _type=FOLDER)
-        # content = str(aux_inode)
-        # while len(content) > 0:
-        #     if len(content) > self.block_bytes:
-        #         _str = content[:self.block_bytes]
-        #         content = content[self.block_bytes:]
-        #     else:
-        #         _str = content
-        #         content = ""
-        #     block_number = self.find_empty_block()
-        #     self.blocks[block_number] = _str
-        #     aux_inode.blocks_numbers.append(block_number)
-        # self.inodes.append(aux_inode)
         self._store_inode(aux_inode)
     
     def _store_inode(self, inode):
@@ -336,9 +206,28 @@ class Memory:
         if block_number != None:
             self.current_stack_inode[-1].blocks_numbers.append(block_number)
             self.blocks[block_number] = str(inode)
+            self._update()
     
     def _update(self):
         self.blocks[ROOT_BLOCK] = str(self.current_stack_inode[0])
+        if len(self.current_stack_inode) > 1:
+            folder_inode_block = self.current_stack_inode[-1]._block
+            self.blocks[folder_inode_block] = str(self.current_stack_inode[-1])
+    
+    def open_folder(self, path):
+        path.split("/")
+        for folder in path:
+            if path == ".." and len(self.current_stack_inode) > 1:
+                self.current_stack_inode.pop()
+            else:
+                for folder_inode_block in self.current_stack_inode[-1].blocks_numbers:
+                    aux_inode = INode(from_dict=eval(self.blocks[folder_inode_block]))
+                    if aux_inode._type == FOLDER and aux_inode.name == path:
+                        aux_inode._block = folder_inode_block
+                        self.current_stack_inode.append(aux_inode)
+                        self._update()
+                        return True
+            return False
 
 def initial_data_for_tests(memory):
     memory.make_file("teste1")
@@ -347,11 +236,11 @@ def initial_data_for_tests(memory):
     memory.make_file("teste4")
     memory.remove_file("teste3")
     memory.list_files_folders(should_print=True)
-    show_initial_memory_blocks(memory)
+    # show_initial_memory_blocks(memory)
 
-def show_initial_memory_blocks(memory):
+def show_initial_memory_blocks(memory, n=10):
     print(">>>>>>>>><<<<<<<<<<")
-    for i in range(6):
+    for i in range(n):
         print("->", i, memory.blocks[i])
 
 # memory = Memory()
@@ -362,14 +251,39 @@ def show_initial_memory_blocks(memory):
 # show_initial_memory_blocks(memory)
 
 memory = Memory()
-show_initial_memory_blocks(memory)
+# show_initial_memory_blocks(memory)
 memory.load_data()
-show_initial_memory_blocks(memory)
+# show_initial_memory_blocks(memory)
 memory.create_folder("documentos")
 memory.list_files_folders(should_print=True)
-memory.show_files()
+# memory.show_files()
+memory.open_folder("documentos")
+initial_data_for_tests(memory)
+# show_initial_memory_blocks(memory)
 print(memory.current_stack_inode)
-memory._update()
-show_initial_memory_blocks(memory)
-# i = INode(name = "lucas", _type = FILE)
-# a, b = i.test()
+memory.list_files_folders(should_print=True)
+memory.open_folder("..")
+print(memory.current_stack_inode)
+memory.list_files_folders(should_print=True)
+print(memory.current_stack_inode)
+print("~~~~~~~~~~~~~~~~~~~~~~~~")
+
+memory.create_folder("jogos")
+memory.list_files_folders(should_print=True)
+memory.open_folder("jogos")
+initial_data_for_tests(memory)
+print(memory.current_stack_inode)
+print("~~~~~~~~~~~~~~~~~~~~~~~~")
+
+memory.open_folder("..")
+print(memory.current_stack_inode)
+print("~~~~~~~~~~~~~~~~~~~~~~~~")
+
+memory.create_folder("wallpapers")
+memory.list_files_folders(should_print=True)
+memory.open_folder("wallpapers")
+initial_data_for_tests(memory)
+print(memory.current_stack_inode)
+print("~~~~~~~~~~~~~~~~~~~~~~~~")
+
+show_initial_memory_blocks(memory, n = 20)
