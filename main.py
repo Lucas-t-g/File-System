@@ -47,6 +47,13 @@ class Memory:
     def __repr__(self):
         return "{} - {} - {}".format(self.n_bytes, self.block_bytes, self.n_blocks)
 
+    def current_dir(self):
+        _str = "/"
+        for inode in self.current_stack_inode:
+            _str += inode.name+"/"
+        return _str[:-1]
+            
+
     def load_data(self):
         files = os.listdir()
         for f in files:
@@ -91,10 +98,12 @@ class Memory:
         if should_print: print("folders: {}".format(_str_folders))
         return filenames, foldernames
     
-    def show_file(self, file_name):
+    def show_file(self, _args):
+        file_name = _args[0]
         for inode_block in self.current_stack_inode[-1].blocks_numbers:
             aux_inode = INode(from_dict=eval(self.blocks[inode_block]))
             if aux_inode._type == FILE and aux_inode.name == file_name:
+                _str = ""
                 for block_number in aux_inode.blocks_numbers:
                     _str += self.blocks[block_number]
                 print("file: {} - {}".format(aux_inode.name, _str))
@@ -127,15 +136,18 @@ class Memory:
                 return i
         return None
 
-    def make_file(self, name_of_file):
+    def make_file(self, _args):
+        name_of_file = _args[0]
         filenames, foldernames = self.list_files_folders()
+        name_of_file = name_of_file.replace(" ", "_")
         if name_of_file not in filenames:
             aux_inode = INode(name = name_of_file, _type=FILE)
             self._store_inode(aux_inode)
         else:
             print("arquivo ja existe")
     
-    def remove_file(self, file_name):
+    def remove_file(self, _args):
+        file_name = _args[0]
         found = False
         for i, inode_block in enumerate(self.current_stack_inode[-1].blocks_numbers):
             inode = INode(from_dict=eval(self.blocks[inode_block]))
@@ -152,7 +164,9 @@ class Memory:
             print("arquivo nao encontrado no diretório atual")
         return found
 
-    def write_in_file(self, file_name, content):
+    def write_in_file(self, _args):
+        file_name = _args[0]
+        content = _args[1]
         content = str(content)
         for i, inode_block in enumerate(self.current_stack_inode[-1].blocks_numbers):
             inode = INode(from_dict=eval(self.blocks[inode_block]))
@@ -173,31 +187,40 @@ class Memory:
                 self.blocks[inode_block] = str(inode)
                 break
 
-    def rename_file(self, old_name, new_name):
+    def rename(self, _args):
+        old_name = _args[0]
+        new_name = _args[1]
         for i, inode_block in enumerate(self.current_stack_inode[-1].blocks_numbers):
             inode = INode(from_dict=eval(self.blocks[inode_block]))
-            if inode._type == FILE and inode.name == old_name:
+            if (inode._type == FILE or inode._type == FOLDER) and inode.name == old_name:
                 inode.name = new_name
                 self.blocks[inode_block] = str(inode)
                 return True
         print("arquivo não existe")
         return False
 
-    def copy_file(self, filename, new_filename = None):
+    def copy_file(self, _args):
+        filename = _args[0]
+        new_filename = None if len(_args) == 1 else _args[1]
+        # print(new_filename)
         for i, inode_block in enumerate(self.current_stack_inode[-1].blocks_numbers):
             inode = INode(from_dict=eval(self.blocks[inode_block]))
             if inode._type == FILE and inode.name == filename:
-                if new_filename is None: new_filename = "{} {}".format(inode.name, "copy")
-                self.make_file(new_filename)
+                if new_filename is None: new_filename = "{}_{}".format(inode.name, "copy")
+                # print(new_filename)
+                # show_initial_memory_blocks(self, n=15)
+                self.make_file([new_filename])
                 _str = ""
                 for block_number in inode.blocks_numbers:
                     _str += self.blocks[block_number]
-                self.write_in_file(new_filename, _str)
+                self.write_in_file([new_filename, _str])
                 return True
         print("arquivo não existe")
         return False
 
-    def create_folder(self, name):
+    def create_folder(self, _args):
+        name = _args[0]
+        name = name.replace(" ", "_")
         aux_inode = INode(name=name, _type=FOLDER)
         self._store_inode(aux_inode)
     
@@ -214,22 +237,21 @@ class Memory:
             folder_inode_block = self.current_stack_inode[-1]._block
             self.blocks[folder_inode_block] = str(self.current_stack_inode[-1])
     
-    def open_folder(self, path):
-        path.split("/")
+    def open_folder(self, _args):
+        path = _args[0].split("/")
         for folder in path:
-            if path == ".." and len(self.current_stack_inode) > 1:
+            if folder == ".." and len(self.current_stack_inode) > 1:
                 self.current_stack_inode.pop()
             else:
                 for folder_inode_block in self.current_stack_inode[-1].blocks_numbers:
                     aux_inode = INode(from_dict=eval(self.blocks[folder_inode_block]))
-                    if aux_inode._type == FOLDER and aux_inode.name == path:
+                    if aux_inode._type == FOLDER and aux_inode.name == folder:
                         aux_inode._block = folder_inode_block
                         self.current_stack_inode.append(aux_inode)
                         self._update()
-                        return True
-            return False
 
-    def delete_folder(self, foldername):
+    def delete_folder(self, _args):
+        foldername = _args[0]
         found = False
         for i, inode_block in enumerate(self.current_stack_inode[-1].blocks_numbers):
             inode = INode(from_dict=eval(self.blocks[inode_block]))
@@ -242,12 +264,34 @@ class Memory:
         else:
             print("arquivo nao encontrado no diretório atual")
         return found
+    
+    def action_map(self, command, _args):
+        # print(command, "--", _args)
+        action = {
+            "ls" : lambda temp: self.list_files_folders(should_print=True),
+            "touch" : lambda temp: self.make_file(_args),
+            "rm" : lambda temp: self.remove_file(_args),
+            "echo" : lambda temp: self.write_in_file(_args),
+            "cat" : lambda temp: self.show_file(_args),
+            "cp" : lambda temp: self.copy_file(_args),
+            "mv" : lambda temp: self.rename(_args),
+            "mkdir" : lambda temp: self.create_folder(_args),
+            "rmdir" : lambda temp: self.delete_folder(_args),
+            "cd" : lambda temp: self.open_folder(_args),
+        }
+        try:
+            action[command](_args)
+            return True
+        except:
+            print("comando '", command, "' nao reconhecido")
+            return False
+
 def initial_data_for_tests(memory):
-    memory.make_file("teste1")
-    memory.make_file("teste2")
-    memory.make_file("teste3")
-    memory.make_file("teste4")
-    memory.remove_file("teste3")
+    memory.make_file(["teste1"])
+    memory.make_file(["teste2"])
+    memory.make_file(["teste3"])
+    memory.make_file(["teste4"])
+    memory.remove_file(["teste3"])
     memory.list_files_folders(should_print=True)
     # show_initial_memory_blocks(memory)
 
@@ -256,59 +300,55 @@ def show_initial_memory_blocks(memory, n=10):
     for i in range(n):
         print("->", i, memory.blocks[i])
 
-# memory = Memory()
-# initial_data_for_tests(memory)
-# entrada = input("informe o conteudo: ")
-# memory.write_in_file("teste1", entrada)
-# memory.store_data()
-# show_initial_memory_blocks(memory)
+def command_interpreter(command_line):
+    space = False
+    for i, _char in enumerate(command_line):
+        if _char == " ":
+            space = i
+            break
+    if space:
+        command = command_line[:space]
+        _args = command_line[space+1:]
+        if command == "echo":
+            count = 0
+            index = False
+            for i, _char in enumerate(_args):
+                if _char == ">":
+                    count += 1
+                else:
+                    count = 0
+                if count == 2:
+                    index = i
+            if index:
+                aux1 = _args[:index-1]
+                aux2 = _args[index+1:]
+                if aux1[-1] == " ": aux1 = aux1[:-1]
+                if aux1[-1] == '"': aux1 = aux1[:-1]
+                if aux1[0] == '"': aux1 = aux1[1:]
+                if aux2[0] == " ": aux2 = aux2[1:]
+                _args = [aux2, aux1]
+        elif command == "cp" or command == "mv":
+            _args = _args.split(" ")
+        else:
+            _args = [_args]
+    else:
+        command = command_line
+        _args = []
+    return command, _args
 
-memory = Memory()
-# show_initial_memory_blocks(memory)
-memory.load_data()
-# show_initial_memory_blocks(memory)
-memory.create_folder("documentos")
-memory.list_files_folders(should_print=True)
-# memory.show_files()
-memory.open_folder("documentos")
-initial_data_for_tests(memory)
-# show_initial_memory_blocks(memory)
-print(memory.current_stack_inode)
-memory.list_files_folders(should_print=True)
-memory.open_folder("..")
-print(memory.current_stack_inode)
-memory.list_files_folders(should_print=True)
-print(memory.current_stack_inode)
-print("~~~~~~~~~~~~~~~~~~~~~~~~")
+if __name__ == "__main__":
+    memory = Memory()
+    memory.load_data()
+    command_line = ""
+    while True:
+        print(memory.current_dir(), end="")
+        command_line = input(": ")
+        if command_line == "exit":
+            break
+        command, _args = command_interpreter(command_line)
+        memory.action_map(command, _args)
+        print()
+        memory.store_data()
+        # show_initial_memory_blocks(memory)
+    
 
-memory.create_folder("jogos")
-memory.list_files_folders(should_print=True)
-memory.open_folder("jogos")
-initial_data_for_tests(memory)
-print(memory.current_stack_inode)
-print("~~~~~~~~~~~~~~~~~~~~~~~~")
-
-memory.open_folder("..")
-print(memory.current_stack_inode)
-print("~~~~~~~~~~~~~~~~~~~~~~~~")
-
-memory.create_folder("wallpapers")
-memory.open_folder("wallpapers")
-initial_data_for_tests(memory)
-print(memory.current_stack_inode)
-memory.list_files_folders(should_print=True)
-print("~~~~~~~~~~~~~~~~~~~~~~~~")
-
-memory.remove_file("teste1")
-memory.list_files_folders(should_print=True)
-memory.remove_file("teste2")
-memory.list_files_folders(should_print=True)
-memory.remove_file("teste4")
-memory.list_files_folders(should_print=True)
-print(memory.current_stack_inode)
-memory.open_folder("..")
-memory.delete_folder("wallpapers")
-print(memory.current_stack_inode)
-memory.list_files_folders(should_print=True)
-print("~~~~~~~~~~~~~~~~~~~~~~~~")
-# show_initial_memory_blocks(memory, n = 20)
